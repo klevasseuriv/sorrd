@@ -1,0 +1,12 @@
+[traffic]
+[[traffic.oids]]
+label = "traffic_in"
+oid = "ifInOctets.10"
+dstype = "COUNTER"
+cdef = ".000008,*"
+
+[[traffic.oids]]
+label = "traffic_out"
+oid = "ifOutOctets.11"
+dstype = "COUNTER"
+cdef = ".000008,*"
