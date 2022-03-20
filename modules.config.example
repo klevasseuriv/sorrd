@@ -1,12 +1,16 @@
 [traffic]
 [[traffic.oids]]
 label = "traffic_in"
+host = "192.168.1.1"
+community = "public"
 oid = "ifInOctets.10"
 dstype = "COUNTER"
 cdef = ".000008,*"
 
 [[traffic.oids]]
 label = "traffic_out"
+host = "192.168.1.1"
+community = "public"
 oid = "ifOutOctets.11"
 dstype = "COUNTER"
 cdef = ".000008,*"

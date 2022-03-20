@@ -9,16 +9,16 @@ from easysnmp import Session
 import rrdtool
 import toml
 
-from sorrd import utils
+from sorrd.agent import SORRDAgent
 
 REQ_EXIT = False
 
 
 @click.command()
-@click.option("--db", help="DB Name")
-@click.option("--rate", help="How often to poll the device in seconds")
-@click.option("--addr", help="Device address")
-@click.option("--module", help="Use a preset configured module")
+@click.option("--db", "-d", help="DB Name")
+@click.option("--rate", "-r", help="How often to poll the device in seconds")
+@click.option("--host", "-h", help="Host address/fqdn")
+@click.option("--module", "-m", help="Use a preset configured module")
 @click.option(
     "--config",
 )
@@ -26,7 +26,7 @@ REQ_EXIT = False
     "--oids",
     help="List of oids, format: OID:DSTYPE, ex. ifInOctets.12:COUNTER:TRANSFORM",
 )
-def sorrd_cli(db: str, rate: str, addr: str, config: str, module: str, oids: List[str]):
+def sorrd_cli(db: str, rate: str, host: str, config: str, module: str, oids: List[str]):
     """SORRD CLI"""
 
     if module and oids:
@@ -49,26 +49,22 @@ def sorrd_cli(db: str, rate: str, addr: str, config: str, module: str, oids: Lis
     data_sources = []
     for oid in config[module]["oids"]:
         data_sources.append(f"DS:{oid['label']}:{oid['dstype']}:60:U:U")
-    # load secrets
-    # TODO provide this from the config/elsewhere
-    secrets = toml.load("/opt/secrets.toml")
 
     # DB / SNMP setup
     db_path = f"{db}.rrd"
-    session = Session(hostname=addr, community=secrets["SNMP_COMMUNITY"], version=2)
     rrdtool.create(
         db_path, "--start", "now", "--step", rate, "RRA:LAST:0.5:1:1000", *data_sources
     )
     dbstart = int(time.time())
+    agent = SORRDAgent(workers=2)
 
     # main loop
+    agent = SORRDAgent(workers=2)
     while not REQ_EXIT:
         rrd_update_str = "N"
-        for oid in config[module]["oids"]:
-            oid_value = utils.tryint(
-                session.get(tuple(oid["oid"].split("."))).value, default=0
-            )
-            rrd_update_str += f":{int(oid_value)}"
+        values = agent.collect(oid_configs=config[module]["oids"])
+        for oid_val in values:
+            rrd_update_str += f":{oid_val}"
 
         rrdtool.update(db_path, rrd_update_str)
         time.sleep(int(rate))
